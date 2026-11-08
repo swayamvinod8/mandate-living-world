@@ -77,10 +77,12 @@ describe("mandate", () => {
   }
 
   // Simulate to get event logs directly; no indexing delays or subscriptions.
-  async function simulatedEvents(transaction: Transaction, signers: Keypair[] = []) {
-    const result = await provider.simulate(transaction, signers);
+  async function simulatedEvents(transaction: Transaction) {
+    transaction.feePayer = provider.wallet.publicKey;
+    const result = await provider.connection.simulateTransaction(transaction);
+    expect(result.value.err, "Transaction simulation failed").to.equal(null);
     return [...new anchor.EventParser(program.programId, program.coder)
-      .parseLogs(result.logs ?? [])].map((event) => ({
+      .parseLogs(result.value.logs ?? [])].map((event) => ({
         name: event.name,
         data: event.data as Record<string, unknown>,
       }));
@@ -105,7 +107,7 @@ describe("mandate", () => {
     const local = ["localhost", "127.0.0.1", "[::1]"].includes(endpoint.hostname);
     if (!local) {
       const genesis = await provider.connection.getGenesisHash();
-      if (genesis !== "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBGw") {
+      if (genesis !== "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG") {
         throw new Error("Run these funded integration tests on localnet or Solana devnet");
       }
     }
@@ -244,7 +246,7 @@ describe("mandate", () => {
     const transaction = await program.methods.bribeAndBetray(new anchor.BN(500)).accountsStrict({
       character, npc, relationship, rival: authority.publicKey,
     }).transaction();
-    const event = eventNamed(await simulatedEvents(transaction, [authority]), "Betrayed");
+    const event = eventNamed(await simulatedEvents(transaction), "Betrayed");
     expect(String(event.offer)).to.equal("500");
     expect(String(event.bondPaid)).to.equal("100");
     expect(String(event.npc)).to.equal(npc.toBase58());
@@ -269,7 +271,7 @@ describe("mandate", () => {
     const transaction = await program.methods.checkEvent().accountsStrict({
       character, owner: player.publicKey,
     }).transaction();
-    const event = eventNamed(await simulatedEvents(transaction, [player]), "EventUnlocked");
+    const event = eventNamed(await simulatedEvents(transaction), "EventUnlocked");
     expect(event.eventId).to.equal(1);
     await checkEvent();
     const after = await program.account.character.fetch(character);
