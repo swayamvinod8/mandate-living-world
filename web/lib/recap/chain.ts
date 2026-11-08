@@ -3,7 +3,7 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { AnchorProvider, BorshCoder, EventParser, Program, type Idl } from "@coral-xyz/anchor";
+import { AnchorProvider, EventParser, Program, type Idl } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { CLASS_NAMES, FLAGS, getCharacterPda, hasFlag } from "../pdas";
 import type { GameEvent, RelationshipState, TimedEvent, WorldSnapshot } from "./types";
@@ -77,7 +77,7 @@ function decodeName(raw: unknown): string {
 }
 
 export async function readWorld(owner: PublicKey): Promise<WorldSnapshot | null> {
-  const { program, connection, idl } = await getProgram();
+  const { program, connection } = await getProgram();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const accounts = program.account as any;
 
@@ -116,7 +116,8 @@ export async function readWorld(owner: PublicKey): Promise<WorldSnapshot | null>
     limit: SIGNATURE_LIMIT,
   });
 
-  const parser = new EventParser(program.programId, new BorshCoder(idl));
+  // program.coder decodes event fields in camelCase (bondPaid, goldBefore)
+  const parser = new EventParser(program.programId, program.coder);
   const events: TimedEvent[] = [];
 
   // Oldest first so the story reads in order
