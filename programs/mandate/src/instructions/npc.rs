@@ -4,6 +4,7 @@
 use anchor_lang::prelude::*;
 
 use crate::errors::MandateError;
+use crate::events::*;
 use crate::state::*;
 
 // ---------- create_npc ----------
@@ -37,9 +38,15 @@ pub fn create_npc(
 ) -> Result<()> {
     require!(name.len() <= MAX_NPC_NAME_LEN, MandateError::NameTooLong);
 
-    // TODO(Aadharsh): set authority, id, name, greed, loyalty, bond,
-    // hired_by = None, bump = ctx.bumps.npc
-    let _ = (ctx, id, greed, loyalty, bond);
+    let npc = &mut ctx.accounts.npc;
+    npc.authority = ctx.accounts.authority.key();
+    npc.id = id;
+    npc.name = name;
+    npc.greed = greed;
+    npc.loyalty = loyalty;
+    npc.bond = bond;
+    npc.hired_by = None;
+    npc.bump = ctx.bumps.npc;
     Ok(())
 }
 
@@ -80,10 +87,21 @@ pub struct Hire<'info> {
 pub fn hire(ctx: Context<Hire>) -> Result<()> {
     require!(ctx.accounts.npc.hired_by.is_none(), MandateError::NpcAlreadyHired);
 
-    // TODO(Aadharsh): relationship = { npc, character, trust: npc.loyalty,
-    // bond_escrow: npc.bond, betrayed: false, bump: ctx.bumps.relationship }
-    // npc.hired_by = Some(character.key())
-    // emit!(Hired { npc: npc.key() });
+    let npc_key = ctx.accounts.npc.key();
+    let character_key = ctx.accounts.character.key();
+
+    // Trust starts at the NPC's loyalty, and its bond sits in escrow
+    let rel = &mut ctx.accounts.relationship;
+    rel.npc = npc_key;
+    rel.character = character_key;
+    rel.trust = ctx.accounts.npc.loyalty;
+    rel.bond_escrow = ctx.accounts.npc.bond;
+    rel.betrayed = false;
+    rel.bump = ctx.bumps.relationship;
+
+    ctx.accounts.npc.hired_by = Some(character_key);
+
+    emit!(Hired { npc: npc_key });
     Ok(())
 }
 
@@ -126,12 +144,35 @@ pub fn bribe_and_betray(ctx: Context<BribeAndBetray>, offer: u64) -> Result<()> 
         MandateError::NpcNotHiredByCharacter
     );
 
-    // TODO(Aadharsh): threshold = bond_escrow + trust * TRUST_WEIGHT (checked)
-    // require!(offer > threshold, BribeTooSmall)
-    // character.gold += bond_escrow (checked); bond_paid = bond_escrow; bond_escrow = 0
-    // relationship.betrayed = true; character.flags |= FLAG_BETRAYED_BY_COMPANION
-    // npc.hired_by = None
-    // emit!(Betrayed { npc: npc.key(), offer, bond_paid });
-    let _ = offer;
+    let rel = &mut ctx.accounts.relationship;
+
+    // The NPC only turns if the offer beats what it would lose by leaving:
+    // its bond plus the trust it has built up
+    let threshold = (rel.trust as u64)
+        .checked_mul(TRUST_WEIGHT)
+        .and_then(|t| t.checked_add(rel.bond_escrow))
+        .ok_or(MandateError::Overflow)?;
+    require!(offer > threshold, MandateError::BribeTooSmall);
+
+    // Slash the bond and pay it to the player
+    let bond_paid = rel.bond_escrow;
+    let character = &mut ctx.accounts.character;
+    character.gold = character
+        .gold
+        .checked_add(bond_paid)
+        .ok_or(MandateError::Overflow)?;
+    character.flags |= FLAG_BETRAYED_BY_COMPANION;
+
+    rel.bond_escrow = 0;
+    rel.betrayed = true;
+
+    let npc = &mut ctx.accounts.npc;
+    npc.hired_by = None;
+
+    emit!(Betrayed {
+        npc: npc.key(),
+        offer,
+        bond_paid,
+    });
     Ok(())
 }
