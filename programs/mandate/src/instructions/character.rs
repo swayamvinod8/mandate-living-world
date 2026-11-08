@@ -1,10 +1,22 @@
 // Character instructions - owner: Ryan
-// Account structs are final (they're the interface). Fill in the handler bodies.
+// Account structs are the shared interface; keep them unchanged.
 
 use anchor_lang::prelude::*;
 
 use crate::errors::MandateError;
+use crate::events::{EventUnlocked, Settled};
 use crate::state::*;
+
+// (starting gold, income per hour, rent per hour), confirmed by Aadharsh.
+fn class_economy(class: u8) -> Result<(u64, u64, u64)> {
+    match class {
+        CLASS_WARRIOR => Ok((100, 12, 4)),
+        CLASS_ROGUE => Ok((80, 10, 2)),
+        CLASS_MERCHANT => Ok((150, 20, 8)),
+        CLASS_PALADIN => Ok((120, 8, 2)),
+        _ => err!(MandateError::InvalidClass),
+    }
+}
 
 // ---------- create_character ----------
 
@@ -26,12 +38,18 @@ pub struct CreateCharacter<'info> {
 }
 
 pub fn create_character(ctx: Context<CreateCharacter>, class: u8) -> Result<()> {
-    require!(class <= CLASS_PALADIN, MandateError::InvalidClass);
-
-    // TODO(Ryan): set owner, class, starting gold, income/rent per hour by class,
-    // last_update = Clock::get()?.unix_timestamp, thieves_rep = 0, flags = 0,
-    // bump = ctx.bumps.character
-    let _ = ctx;
+    let (gold, income_per_hour, rent_per_hour) = class_economy(class)?;
+    ctx.accounts.character.set_inner(Character {
+        owner: ctx.accounts.owner.key(),
+        class,
+        gold,
+        income_per_hour,
+        rent_per_hour,
+        last_update: Clock::get()?.unix_timestamp,
+        thieves_rep: 0,
+        flags: 0,
+        bump: ctx.bumps.character,
+    });
     Ok(())
 }
 
@@ -49,12 +67,46 @@ pub struct Settle<'info> {
 }
 
 pub fn settle(ctx: Context<Settle>) -> Result<()> {
-    // TODO(Ryan): elapsed hours = min(now - last_update, MAX_SETTLE_HOURS * 3600) / 3600
-    // gold += income_per_hour * hours (checked), gold -= min(gold, rent_per_hour * hours)
-    // last_update = now. Integer math only.
-    // emit!(Settled { gold_before, gold_after, hours });
-    let _ = ctx;
+    let now = Clock::get()?.unix_timestamp;
+    let character = &mut ctx.accounts.character;
+    let gold_before = character.gold;
+    let (gold_after, hours) = settled_balance(
+        gold_before,
+        character.income_per_hour,
+        character.rent_per_hour,
+        character.last_update,
+        now,
+    )?;
+    character.gold = gold_after;
+    character.last_update = now;
+    emit!(Settled {
+        gold_before,
+        gold_after,
+        hours
+    });
     Ok(())
+}
+
+// Keep clock math pure so hour boundaries and the cap need no real-time waits.
+fn settled_balance(
+    gold: u64,
+    income_per_hour: u64,
+    rent_per_hour: u64,
+    last_update: i64,
+    now: i64,
+) -> Result<(u64, u64)> {
+    let elapsed = now
+        .saturating_sub(last_update)
+        .clamp(0, MAX_SETTLE_HOURS * 3600);
+    let hours = (elapsed / 3600) as u64;
+    let income = income_per_hour
+        .checked_mul(hours)
+        .ok_or(MandateError::Overflow)?;
+    let rent = rent_per_hour
+        .checked_mul(hours)
+        .ok_or(MandateError::Overflow)?;
+    let available = gold.checked_add(income).ok_or(MandateError::Overflow)?;
+    Ok((available.saturating_sub(rent), hours))
 }
 
 // ---------- guild_job ----------
@@ -73,8 +125,12 @@ pub struct GuildJob<'info> {
 }
 
 pub fn guild_job(ctx: Context<GuildJob>) -> Result<()> {
-    // TODO(Ryan): thieves_rep = min(thieves_rep + GUILD_JOB_REP, MAX_REP)
-    let _ = ctx;
+    let character = &mut ctx.accounts.character;
+    character.thieves_rep = character
+        .thieves_rep
+        .checked_add(GUILD_JOB_REP)
+        .ok_or(MandateError::Overflow)?
+        .min(MAX_REP);
     Ok(())
 }
 
@@ -94,9 +150,97 @@ pub struct CheckEvent<'info> {
 }
 
 pub fn check_event(ctx: Context<CheckEvent>) -> Result<()> {
-    // TODO(Ryan): require BETRAYED flag and thieves_rep >= HUNT_EVENT_MIN_REP
-    // (else EventConditionsNotMet), set FLAG_EVENT_HUNT_KAEL_UNLOCKED,
-    // emit!(EventUnlocked { event_id: HUNT_EVENT_ID });
-    let _ = ctx;
+    let character = &mut ctx.accounts.character;
+    require!(
+        character.flags & FLAG_BETRAYED_BY_COMPANION != 0
+            && character.thieves_rep >= HUNT_EVENT_MIN_REP,
+        MandateError::EventConditionsNotMet
+    );
+    character.flags |= FLAG_EVENT_HUNT_KAEL_UNLOCKED;
+    emit!(EventUnlocked {
+        event_id: HUNT_EVENT_ID
+    });
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn class_economy_matches_the_final_table() {
+        assert_eq!(class_economy(CLASS_WARRIOR).unwrap(), (100, 12, 4));
+        assert_eq!(class_economy(CLASS_ROGUE).unwrap(), (80, 10, 2));
+        assert_eq!(class_economy(CLASS_MERCHANT).unwrap(), (150, 20, 8));
+        assert_eq!(class_economy(CLASS_PALADIN).unwrap(), (120, 8, 2));
+    }
+
+    #[test]
+    fn class_economy_rejects_invalid_classes() {
+        assert!(class_economy(4).is_err());
+        assert!(class_economy(u8::MAX).is_err());
+    }
+
+    #[test]
+    fn settlement_uses_whole_hours() {
+        assert_eq!(settled_balance(150, 20, 8, 100, 100).unwrap(), (150, 0));
+        assert_eq!(settled_balance(150, 20, 8, 100, 3699).unwrap(), (150, 0));
+        assert_eq!(settled_balance(150, 20, 8, 100, 3700).unwrap(), (162, 1));
+        assert_eq!(settled_balance(150, 20, 8, 100, 28900).unwrap(), (246, 8));
+    }
+
+    #[test]
+    fn settlement_caps_at_72_hours() {
+        for (class, expected) in [
+            (CLASS_WARRIOR, 676),
+            (CLASS_ROGUE, 656),
+            (CLASS_MERCHANT, 1014),
+            (CLASS_PALADIN, 552),
+        ] {
+            let (gold, income, rent) = class_economy(class).unwrap();
+            for hours in [72, 73, 1000] {
+                assert_eq!(
+                    settled_balance(gold, income, rent, 0, hours * 3600).unwrap(),
+                    (expected, 72)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rent_cannot_make_gold_negative() {
+        assert_eq!(settled_balance(1, 0, 10, 0, 3600).unwrap(), (0, 1));
+        assert_eq!(settled_balance(0, 2, 10, 0, 3600).unwrap(), (0, 1));
+        assert_eq!(settled_balance(10, 0, 10, 0, 3600).unwrap(), (0, 1));
+    }
+
+    #[test]
+    fn backwards_clock_does_not_charge_or_pay() {
+        assert_eq!(settled_balance(150, 20, 8, 100, 99).unwrap(), (150, 0));
+        assert_eq!(
+            settled_balance(150, 20, 8, i64::MAX, i64::MIN).unwrap(),
+            (150, 0)
+        );
+        assert_eq!(
+            settled_balance(150, 20, 8, i64::MIN, i64::MAX).unwrap(),
+            (1014, 72)
+        );
+    }
+
+    #[test]
+    fn settlement_rejects_overflow() {
+        for (gold, income, rent, now) in [
+            (u64::MAX, 1, 0, 3600),
+            (0, u64::MAX, 0, 7200),
+            (0, 0, u64::MAX, 7200),
+        ] {
+            let error = settled_balance(gold, income, rent, 0, now).unwrap_err();
+            match error {
+                anchor_lang::error::Error::AnchorError(error) => {
+                    assert_eq!(error.error_name, "Overflow");
+                }
+                _ => panic!("expected Overflow"),
+            }
+        }
+    }
 }
