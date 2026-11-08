@@ -8,7 +8,7 @@ pub mod state;
 use instructions::*;
 
 // Replaced by `anchor keys sync` before the first deploy
-declare_id!("11111111111111111111111111111111");
+declare_id!("H3tueXv6DLBhn61SzEuy3MueqGwhQfkM5yK2gyHsZDjd");
 
 #[program]
 pub mod mandate {

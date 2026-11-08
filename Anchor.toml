@@ -2,14 +2,14 @@
 package_manager = "npm"
 
 [features]
-resolution = true
+resolution = false
 skip-lint = false
 
 [programs.devnet]
-mandate = "11111111111111111111111111111111"
+mandate = "H3tueXv6DLBhn61SzEuy3MueqGwhQfkM5yK2gyHsZDjd"
 
 [programs.localnet]
-mandate = "11111111111111111111111111111111"
+mandate = "H3tueXv6DLBhn61SzEuy3MueqGwhQfkM5yK2gyHsZDjd"
 
 [provider]
 cluster = "devnet"

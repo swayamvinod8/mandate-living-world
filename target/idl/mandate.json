@@ -1,0 +1,559 @@
+{
+  "address": "H3tueXv6DLBhn61SzEuy3MueqGwhQfkM5yK2gyHsZDjd",
+  "metadata": {
+    "name": "mandate",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Mandate - living world guild game on Solana"
+  },
+  "instructions": [
+    {
+      "name": "bribe_and_betray",
+      "discriminator": [
+        68,
+        79,
+        175,
+        172,
+        138,
+        205,
+        33,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "character",
+          "writable": true
+        },
+        {
+          "name": "npc",
+          "writable": true
+        },
+        {
+          "name": "relationship",
+          "writable": true
+        },
+        {
+          "name": "rival",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "offer",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "check_event",
+      "discriminator": [
+        106,
+        169,
+        201,
+        58,
+        141,
+        174,
+        69,
+        81
+      ],
+      "accounts": [
+        {
+          "name": "character",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_character",
+      "discriminator": [
+        94,
+        208,
+        60,
+        158,
+        114,
+        52,
+        154,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "character",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "class",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "create_npc",
+      "discriminator": [
+        246,
+        149,
+        253,
+        193,
+        176,
+        213,
+        234,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "npc",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "id",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "greed",
+          "type": "u8"
+        },
+        {
+          "name": "loyalty",
+          "type": "u8"
+        },
+        {
+          "name": "bond",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "guild_job",
+      "discriminator": [
+        168,
+        194,
+        61,
+        82,
+        92,
+        153,
+        180,
+        94
+      ],
+      "accounts": [
+        {
+          "name": "character",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "hire",
+      "discriminator": [
+        147,
+        104,
+        157,
+        206,
+        56,
+        175,
+        129,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "character"
+        },
+        {
+          "name": "npc",
+          "writable": true
+        },
+        {
+          "name": "relationship",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settle",
+      "discriminator": [
+        175,
+        42,
+        185,
+        87,
+        144,
+        131,
+        102,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "character",
+          "writable": true
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Character",
+      "discriminator": [
+        140,
+        115,
+        165,
+        36,
+        241,
+        153,
+        102,
+        84
+      ]
+    },
+    {
+      "name": "Npc",
+      "discriminator": [
+        68,
+        83,
+        157,
+        72,
+        230,
+        229,
+        125,
+        134
+      ]
+    },
+    {
+      "name": "Relationship",
+      "discriminator": [
+        89,
+        169,
+        213,
+        122,
+        174,
+        249,
+        5,
+        251
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "Betrayed",
+      "discriminator": [
+        162,
+        242,
+        204,
+        2,
+        207,
+        25,
+        183,
+        232
+      ]
+    },
+    {
+      "name": "EventUnlocked",
+      "discriminator": [
+        121,
+        111,
+        235,
+        203,
+        90,
+        214,
+        59,
+        242
+      ]
+    },
+    {
+      "name": "Hired",
+      "discriminator": [
+        239,
+        97,
+        56,
+        26,
+        33,
+        183,
+        111,
+        164
+      ]
+    },
+    {
+      "name": "Settled",
+      "discriminator": [
+        232,
+        210,
+        40,
+        17,
+        142,
+        124,
+        145,
+        238
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidClass",
+      "msg": "Class must be 0-3 (Warrior, Rogue, Merchant, Paladin)"
+    },
+    {
+      "code": 6001,
+      "name": "NameTooLong",
+      "msg": "NPC name is too long"
+    },
+    {
+      "code": 6002,
+      "name": "Unauthorized",
+      "msg": "Only the NPC authority can do this"
+    },
+    {
+      "code": 6003,
+      "name": "NpcAlreadyHired",
+      "msg": "This NPC is already hired"
+    },
+    {
+      "code": 6004,
+      "name": "NpcNotHiredByCharacter",
+      "msg": "This NPC is not hired by this character"
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyBetrayed",
+      "msg": "This companion already betrayed you"
+    },
+    {
+      "code": 6006,
+      "name": "BribeTooSmall",
+      "msg": "Bribe must be larger than bond plus trust"
+    },
+    {
+      "code": 6007,
+      "name": "EventConditionsNotMet",
+      "msg": "Event conditions not met"
+    },
+    {
+      "code": 6008,
+      "name": "Overflow",
+      "msg": "Math overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "Betrayed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "npc",
+            "type": "pubkey"
+          },
+          {
+            "name": "offer",
+            "type": "u64"
+          },
+          {
+            "name": "bond_paid",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Character",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "class",
+            "type": "u8"
+          },
+          {
+            "name": "gold",
+            "type": "u64"
+          },
+          {
+            "name": "income_per_hour",
+            "type": "u64"
+          },
+          {
+            "name": "rent_per_hour",
+            "type": "u64"
+          },
+          {
+            "name": "last_update",
+            "type": "i64"
+          },
+          {
+            "name": "thieves_rep",
+            "type": "i16"
+          },
+          {
+            "name": "flags",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EventUnlocked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Hired",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "npc",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Npc",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "id",
+            "type": "u8"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "greed",
+            "type": "u8"
+          },
+          {
+            "name": "loyalty",
+            "type": "u8"
+          },
+          {
+            "name": "bond",
+            "type": "u64"
+          },
+          {
+            "name": "hired_by",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Relationship",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "npc",
+            "type": "pubkey"
+          },
+          {
+            "name": "character",
+            "type": "pubkey"
+          },
+          {
+            "name": "trust",
+            "type": "u8"
+          },
+          {
+            "name": "bond_escrow",
+            "type": "u64"
+          },
+          {
+            "name": "betrayed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Settled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "gold_before",
+            "type": "u64"
+          },
+          {
+            "name": "gold_after",
+            "type": "u64"
+          },
+          {
+            "name": "hours",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
