@@ -4,23 +4,35 @@ Ryan's character logic and tests
 Scope: `programs/mandate/src/instructions/character.rs` and `tests/`.
 The shared accounts, seeds, IDL, PDA helpers, and NPC handlers are unchanged.
 
-Provisional class tuning
-------------------------
+Final class economy
+-------------------
 
-The supplied handover does not contain the original class economy table.
-All classes start with **500 gold**. The temporary hourly rates are:
+Aadharsh confirmed these values. They live in `class_economy` in
+`character.rs`; `tests/mandate.ts` checks the same table at character creation.
 
-| Class | Income | Rent |
-| --- | ---: | ---: |
-| Warrior | 10 | 10 |
-| Rogue | 11 | 10 |
-| Merchant | 12 | 10 |
-| Paladin | 10 | 12 |
+| Class | Start gold | Income/hr | Rent/hr | Net/hr |
+| --- | ---: | ---: | ---: | ---: |
+| Warrior | 100 | 12 | 4 | +8 |
+| Rogue | 80 | 10 | 2 | +8 |
+| Merchant | 150 | 20 | 8 | +12 |
+| Paladin | 120 | 8 | 2 | +6 |
 
-Only Merchant's 12/10 comes from the existing recap demo. Confirm the other
-rates and starting gold with the team before treating them as final. Update
-`STARTING_GOLD` and `class_rates` in `character.rs`, plus the expected values
-in `tests/mandate.ts`, when the original table is available.
+A Merchant gains at most **864 gold per settlement** at the 72-hour cap:
+150 starting gold becomes 1,014, before any bond payouts or other changes.
+
+Demo preparation
+----------------
+
+Create the demo character and hire Kael **2–3 hours before recording**.
+Earn at least 10 Thieves' Guild reputation with two jobs. During recording,
+run the rival's 500 gold bribe, then settle and check the hunt event.
+The 100 gold bond payout visibly increases the player's balance, and settlement
+adds a real offline-income line to the recap.
+
+Settlement counts whole hours only. A newly created character settles zero
+hours during a two-minute recording. Avoid settling between preparation and
+recording: each settlement resets `last_update`, even for a partial hour.
+Zero elapsed hours means no income; a betrayal can still appear in the recap.
 
 Validation
 ----------

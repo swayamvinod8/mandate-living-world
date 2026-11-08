@@ -7,16 +7,13 @@ use crate::errors::MandateError;
 use crate::events::{EventUnlocked, Settled};
 use crate::state::*;
 
-// Provisional tuning until the team supplies the original class table.
-// Merchant's 12 income / 10 rent matches the existing recap demo.
-const STARTING_GOLD: u64 = 500;
-
-fn class_rates(class: u8) -> Result<(u64, u64)> {
+// (starting gold, income per hour, rent per hour), confirmed by Aadharsh.
+fn class_economy(class: u8) -> Result<(u64, u64, u64)> {
     match class {
-        CLASS_WARRIOR => Ok((10, 10)),
-        CLASS_ROGUE => Ok((11, 10)),
-        CLASS_MERCHANT => Ok((12, 10)),
-        CLASS_PALADIN => Ok((10, 12)),
+        CLASS_WARRIOR => Ok((100, 12, 4)),
+        CLASS_ROGUE => Ok((80, 10, 2)),
+        CLASS_MERCHANT => Ok((150, 20, 8)),
+        CLASS_PALADIN => Ok((120, 8, 2)),
         _ => err!(MandateError::InvalidClass),
     }
 }
@@ -41,11 +38,11 @@ pub struct CreateCharacter<'info> {
 }
 
 pub fn create_character(ctx: Context<CreateCharacter>, class: u8) -> Result<()> {
-    let (income_per_hour, rent_per_hour) = class_rates(class)?;
+    let (gold, income_per_hour, rent_per_hour) = class_economy(class)?;
     ctx.accounts.character.set_inner(Character {
         owner: ctx.accounts.owner.key(),
         class,
-        gold: STARTING_GOLD,
+        gold,
         income_per_hour,
         rent_per_hour,
         last_update: Clock::get()?.unix_timestamp,
@@ -171,27 +168,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn class_rates_reject_invalid_classes() {
-        assert_eq!(class_rates(CLASS_MERCHANT).unwrap(), (12, 10));
-        assert!(class_rates(4).is_err());
-        assert!(class_rates(u8::MAX).is_err());
+    fn class_economy_matches_the_final_table() {
+        assert_eq!(class_economy(CLASS_WARRIOR).unwrap(), (100, 12, 4));
+        assert_eq!(class_economy(CLASS_ROGUE).unwrap(), (80, 10, 2));
+        assert_eq!(class_economy(CLASS_MERCHANT).unwrap(), (150, 20, 8));
+        assert_eq!(class_economy(CLASS_PALADIN).unwrap(), (120, 8, 2));
+    }
+
+    #[test]
+    fn class_economy_rejects_invalid_classes() {
+        assert!(class_economy(4).is_err());
+        assert!(class_economy(u8::MAX).is_err());
     }
 
     #[test]
     fn settlement_uses_whole_hours() {
-        assert_eq!(settled_balance(500, 12, 10, 100, 100).unwrap(), (500, 0));
-        assert_eq!(settled_balance(500, 12, 10, 100, 3699).unwrap(), (500, 0));
-        assert_eq!(settled_balance(500, 12, 10, 100, 3700).unwrap(), (502, 1));
-        assert_eq!(settled_balance(500, 12, 10, 100, 28900).unwrap(), (516, 8));
+        assert_eq!(settled_balance(150, 20, 8, 100, 100).unwrap(), (150, 0));
+        assert_eq!(settled_balance(150, 20, 8, 100, 3699).unwrap(), (150, 0));
+        assert_eq!(settled_balance(150, 20, 8, 100, 3700).unwrap(), (162, 1));
+        assert_eq!(settled_balance(150, 20, 8, 100, 28900).unwrap(), (246, 8));
     }
 
     #[test]
     fn settlement_caps_at_72_hours() {
-        for hours in [72, 73, 1000] {
-            assert_eq!(
-                settled_balance(500, 12, 10, 0, hours * 3600).unwrap(),
-                (644, 72)
-            );
+        for (class, expected) in [
+            (CLASS_WARRIOR, 676),
+            (CLASS_ROGUE, 656),
+            (CLASS_MERCHANT, 1014),
+            (CLASS_PALADIN, 552),
+        ] {
+            let (gold, income, rent) = class_economy(class).unwrap();
+            for hours in [72, 73, 1000] {
+                assert_eq!(
+                    settled_balance(gold, income, rent, 0, hours * 3600).unwrap(),
+                    (expected, 72)
+                );
+            }
         }
     }
 
@@ -204,14 +216,14 @@ mod tests {
 
     #[test]
     fn backwards_clock_does_not_charge_or_pay() {
-        assert_eq!(settled_balance(500, 12, 10, 100, 99).unwrap(), (500, 0));
+        assert_eq!(settled_balance(150, 20, 8, 100, 99).unwrap(), (150, 0));
         assert_eq!(
-            settled_balance(500, 12, 10, i64::MAX, i64::MIN).unwrap(),
-            (500, 0)
+            settled_balance(150, 20, 8, i64::MAX, i64::MIN).unwrap(),
+            (150, 0)
         );
         assert_eq!(
-            settled_balance(500, 12, 10, i64::MIN, i64::MAX).unwrap(),
-            (644, 72)
+            settled_balance(150, 20, 8, i64::MIN, i64::MAX).unwrap(),
+            (1014, 72)
         );
     }
 

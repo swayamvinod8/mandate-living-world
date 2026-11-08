@@ -12,14 +12,13 @@ process.env.NEXT_PUBLIC_PROGRAM_ID = idl.address;
 const { getCharacterPda, getNpcPda, getRelationshipPda, FLAGS, NPC_IDS } =
   require("../web/lib/pdas") as typeof import("../web/lib/pdas");
 
-// Provisional values; replace alongside class_rates in character.rs once agreed.
+// Final class economy confirmed by Aadharsh.
 const CLASSES = [
-  { name: "Warrior", income: 10, rent: 10 },
-  { name: "Rogue", income: 11, rent: 10 },
-  { name: "Merchant", income: 12, rent: 10 },
-  { name: "Paladin", income: 10, rent: 12 },
+  { name: "Warrior", gold: 100, income: 12, rent: 4 },
+  { name: "Rogue", gold: 80, income: 10, rent: 2 },
+  { name: "Merchant", gold: 150, income: 20, rent: 8 },
+  { name: "Paladin", gold: 120, income: 8, rent: 2 },
 ];
-const STARTING_GOLD = 500;
 
 async function expectAnchorError(action: Promise<unknown>, code: string) {
   try {
@@ -133,7 +132,7 @@ describe("mandate", () => {
       const endTime = await provider.connection.getBlockTime(endSlot);
       expect(state.owner.equals(owner.publicKey)).to.equal(true);
       expect(state.class).to.equal(classId);
-      expect(state.gold.toNumber()).to.equal(STARTING_GOLD);
+      expect(state.gold.toNumber()).to.equal(config.gold);
       expect(state.incomePerHour.toNumber()).to.equal(config.income);
       expect(state.rentPerHour.toNumber()).to.equal(config.rent);
       expect(state.thievesRep).to.equal(0);
