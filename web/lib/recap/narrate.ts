@@ -2,7 +2,10 @@
 // Rule: the program decides what happened, the model only tells it.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { fallbackRecap } from "./fallback";
 import type { TimedEvent, WorldSnapshot } from "./types";
+
+export { fallbackRecap };
 
 const MODEL = process.env.RECAP_MODEL ?? "claude-sonnet-5-5";
 
@@ -50,26 +53,6 @@ export function buildFacts(world: WorldSnapshot): string {
     ...world.events.map(describeEvent),
   ];
   return lines.join("\n");
-}
-
-// Plain recap used when there's no API key or the call fails, so the demo never breaks
-export function fallbackRecap(world: WorldSnapshot): string {
-  if (world.events.length === 0) {
-    return `Nothing happened while you were away. You have ${world.character.gold} gold.`;
-  }
-  const parts = world.events.map((e) => {
-    switch (e.kind) {
-      case "hired":
-        return `You hired ${e.npcName}.`;
-      case "betrayed":
-        return `${e.npcName} took a ${e.offer} gold bribe and betrayed you. Their ${e.bondPaid} gold bond was paid to you.`;
-      case "settled":
-        return `Over ${e.hours} hours your gold went from ${e.goldBefore} to ${e.goldAfter}.`;
-      case "eventUnlocked":
-        return `The Thieves' Guild offers to hunt down your betrayer for a share of the spoils.`;
-    }
-  });
-  return `While you were away: ${parts.join(" ")}`;
 }
 
 export async function narrate(world: WorldSnapshot): Promise<{ text: string; narrated: boolean }> {

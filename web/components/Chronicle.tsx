@@ -4,7 +4,30 @@ import { useCallback, useEffect, useState } from "react";
 import type { PublicKey } from "@solana/web3.js";
 import { ago, gold } from "@/lib/format";
 import { explorerTxUrl } from "@/lib/pdas";
+import { readWorld } from "@/lib/recap/chain";
+import { fallbackRecap } from "@/lib/recap/fallback";
 import type { RecapResponse, TimedEvent } from "@/lib/recap/types";
+
+// "local" skips the narrator API (the static GitHub Pages build has no server)
+const LOCAL_ONLY = process.env.NEXT_PUBLIC_RECAP_MODE === "local";
+
+async function fetchNarrated(owner: string): Promise<RecapResponse> {
+  const res = await fetch("/api/recap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error ?? `Recap failed (${res.status})`);
+  return json as RecapResponse;
+}
+
+// Reads the same events in the browser and writes the plain recap
+async function buildLocal(owner: PublicKey): Promise<RecapResponse> {
+  const world = await readWorld(owner);
+  if (!world) throw new Error("No character for this wallet yet.");
+  return { recap: fallbackRecap(world), facts: world, source: "chain", narrated: false };
+}
 
 type Props = {
   owner: PublicKey | null;
@@ -31,23 +54,26 @@ export default function Chronicle({ owner, storyKey }: Props) {
   const ownerKey = owner?.toBase58() ?? null;
 
   const load = useCallback(async () => {
-    if (!ownerKey) return;
+    if (!owner) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/recap", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner: ownerKey }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error ?? `Recap failed (${res.status})`);
-      setData(json as RecapResponse);
+      if (LOCAL_ONLY) {
+        setData(await buildLocal(owner));
+      } else {
+        try {
+          setData(await fetchNarrated(owner.toBase58()));
+        } catch {
+          // Narrator unavailable: fall back to the plain ledger version
+          setData(await buildLocal(owner));
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't write the chronicle.");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownerKey]);
 
   // Write on load, and again when something big changes on-chain
