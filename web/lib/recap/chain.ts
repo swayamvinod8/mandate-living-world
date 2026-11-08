@@ -1,10 +1,9 @@
 // Reads the player's world straight from devnet for the recap.
 // Server-side only. Uses a read-only provider, so no wallet or key is needed.
 
-import { promises as fs } from "fs";
-import path from "path";
 import { AnchorProvider, EventParser, Program, type Idl } from "@coral-xyz/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import idlJson from "../idl/mandate.json";
 import { CLASS_NAMES, FLAGS, getCharacterPda, hasFlag } from "../pdas";
 import type { GameEvent, RelationshipState, TimedEvent, WorldSnapshot } from "./types";
 
@@ -17,26 +16,12 @@ const REL_CHARACTER_OFFSET = 8 + 32;
 // How many recent transactions to scan for events
 const SIGNATURE_LIMIT = 25;
 
-let cachedIdl: Idl | null = null;
-
-// The IDL is copied in from target/idl/mandate.json after each anchor build.
-// Loaded at runtime so the web app still builds before the program exists.
-async function loadIdl(): Promise<Idl> {
-  if (cachedIdl) return cachedIdl;
-  const idlPath = path.join(process.cwd(), "lib", "idl", "mandate.json");
-  try {
-    const raw = await fs.readFile(idlPath, "utf8");
-    cachedIdl = JSON.parse(raw) as Idl;
-    return cachedIdl;
-  } catch {
-    throw new Error(
-      "Missing web/lib/idl/mandate.json. Copy it from target/idl/ or set RECAP_USE_MOCK=true."
-    );
-  }
-}
+// Imported directly so the IDL ships with the server bundle on Vercel.
+// Refresh it with `npm run copy-idl` from the repo root after each anchor build.
+const IDL = idlJson as unknown as Idl;
 
 async function getProgram() {
-  const idl = await loadIdl();
+  const idl = IDL;
   const connection = new Connection(RPC_URL, "confirmed");
 
   // Throwaway wallet - we only read accounts, never sign
