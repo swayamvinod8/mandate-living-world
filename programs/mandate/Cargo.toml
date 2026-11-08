@@ -1,0 +1,21 @@
+[package]
+name = "mandate"
+version = "0.1.0"
+description = "Mandate - living world guild game on Solana"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "mandate"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+# Match this to your installed CLI (`anchor --version`) if it differs
+anchor-lang = "0.31.1"

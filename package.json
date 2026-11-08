@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "copy-idl": "mkdir -p web/lib/idl && cp target/idl/mandate.json web/lib/idl/mandate.json && cp target/types/mandate.ts web/lib/idl/mandate.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/web3.js": "^1.98.0"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "chai": "^4.3.4",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.7.0"
+  }
+}

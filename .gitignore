@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# anchor / rust build output
+target/*
+!target/idl/
+!target/types/
+.anchor/
+test-ledger/
+
+# next.js
+web/.next/
+web/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets - never commit keys or api keys
+.env
+.env.*
+!.env.example
+scripts/keys/*
+!scripts/keys/.gitkeep
+*-keypair.json
+id.json
+
+# misc
+.DS_Store
+*.log
