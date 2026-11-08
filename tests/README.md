@@ -85,6 +85,8 @@ used by `settle` is unit-tested for full hours, income/rent, the 72-hour cap,
 zero gold, backwards clocks, and overflow. As required by the handover,
 settlement always sets `last_update` to now, including partial-hour calls.
 
-The NPC-dependent integration tests are expected to fail against the current
-`npc.rs` TODO stubs. Aadharsh must implement `create_npc`, `hire`, and
-`bribe_and_betray`, then deploy that version, for the complete flow to pass.
+Full chain testing requires deploying the combined character and NPC source
+to the test cluster. Aadharsh's NPC handlers are now merged into `main`.
+The full `anchor test` suite has not been run locally because this Windows
+environment lacks WSL and the Solana/Anchor toolchain; the Rust tests and
+offline client checks pass.
