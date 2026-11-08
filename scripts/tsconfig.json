@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "..",
+    "outDir": "./.build"
+  },
+  "include": ["./*.ts", "../web/lib/pdas.ts", "../web/lib/idl/mandate.ts", "../web/lib/idl/mandate.json"]
+}
